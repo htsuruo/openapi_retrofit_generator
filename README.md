@@ -250,6 +250,65 @@ openapi_generator:
   default_client: api                        # Name for untagged endpoints
 ```
 
+### Output Layout
+
+By default, generated data classes are written to `models/`, and clients follow
+the existing `put_clients_in_folder` behavior. To split generated files by
+purpose, configure `output_layout`:
+
+```yaml
+openapi_generator:
+  schema_path: api/openapi.yaml
+  output_directory: lib/api
+
+  output_layout:
+    clients: clients                         # REST clients
+    models: models                           # Regular component models
+    requests: requests                       # Request DTOs
+    responses: responses                     # Response DTOs
+    enums: enums                             # Enum DTOs
+```
+
+When `output_layout` is set, generated imports are resolved relative to the new
+file locations. For example, a request DTO can import a shared model from
+`../models/user.dart`, and a client can import request/response DTOs from their
+configured folders.
+
+Data classes are classified by name:
+
+- `UniversalEnumClass` values are written to the `enums` folder.
+- Class names ending with `Input`, `Request`, or `Payload` are written to the
+  `requests` folder.
+- Class names ending with `Response` or `Page` are written to the `responses`
+  folder.
+- All other data classes are written to the `models` folder.
+
+You can customize the suffixes or force exact class names into a specific
+category with `model_classification`:
+
+```yaml
+openapi_generator:
+  schema_path: api/openapi.yaml
+  output_directory: lib/api
+
+  output_layout:
+    clients: clients
+    models: models
+    requests: requests
+    responses: responses
+    enums: enums
+
+  model_classification:
+    request_suffixes: [Input, Request, Payload]
+    response_suffixes: [Response, Page]
+    overrides:
+      SearchResult: models
+      TokenResponse: responses
+      Role: enums
+```
+
+Override values must be one of `models`, `requests`, `responses`, or `enums`.
+
 ### Multiple API Schemas
 
 Generate clients for multiple APIs in one project:
@@ -512,6 +571,8 @@ For all available configuration options, see:
 | `skipped_parameters` | `[]` | Parameter names to exclude |
 | `original_http_response` | `false` | Return `HttpResponse<T>` with headers |
 | `extras_parameter_by_default` | `false` | Add `@Extras()` to all methods |
+| `output_layout` | `null` | Split generated clients, models, requests, responses, and enums into configured folders |
+| `model_classification` | default suffix rules | Customize request/response suffixes and exact class-name category overrides |
 
 ## Examples
 
