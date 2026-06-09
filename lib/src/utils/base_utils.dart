@@ -14,8 +14,15 @@ const _primitiveTypes = {
   'Uint8List',
 };
 
+/// Resolves a parser import name to a Dart import path.
+typedef DartImportPathResolver = String Function(String import);
+
 /// Provides imports as String from list of imports
-String dartImports({required Set<String> imports, String? pathPrefix}) {
+String dartImports({
+  required Set<String> imports,
+  String? pathPrefix,
+  DartImportPathResolver? importPathResolver,
+}) {
   if (imports.isEmpty) {
     return '';
   }
@@ -25,7 +32,10 @@ String dartImports({required Set<String> imports, String? pathPrefix}) {
   if (filteredImports.isEmpty) {
     return '';
   }
-  return '\n${filteredImports.map((import) => "import '${pathPrefix ?? ''}${import.toSnake}.dart';").join('\n')}\n';
+  return '\n${filteredImports.map((import) {
+    final path = importPathResolver?.call(import) ?? '${pathPrefix ?? ''}${import.toSnake}.dart';
+    return "import '$path';";
+  }).join('\n')}\n';
 }
 
 String indentation(int length) => ' ' * length;

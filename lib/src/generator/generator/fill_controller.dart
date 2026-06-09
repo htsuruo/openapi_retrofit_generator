@@ -12,6 +12,7 @@ import 'package:openapi_retrofit_generator/src/generator/templates/dart_typedef_
 import 'package:openapi_retrofit_generator/src/parser/model/normalized_identifier.dart';
 import 'package:openapi_retrofit_generator/src/parser/openapi_parser_core.dart';
 import 'package:openapi_retrofit_generator/src/utils/base_utils.dart';
+import 'package:path/path.dart' as p;
 
 /// Handles generating files
 final class FillController {
@@ -19,6 +20,7 @@ final class FillController {
   const FillController({
     required this.config,
     this.info = const OpenApiInfo(schemaVersion: OAS.v3_1),
+    this.dataClasses = const [],
   });
 
   /// Api info
@@ -27,19 +29,26 @@ final class FillController {
   /// Config
   final GeneratorConfig config;
 
+  /// All data classes in this generation run.
+  final List<UniversalDataClass> dataClasses;
+
   /// Return [GeneratedFile] generated from given [UniversalDataClass]
-  GeneratedFile fillDtoContent(UniversalDataClass dataClass) => GeneratedFile(
-    name: 'models/${_resolveDtoFileBaseName(dataClass)}.dart',
-    content: _dtoFileContent(
-      dataClass,
-      jsonSerializer: config.jsonSerializer,
-      unknownEnumValue: config.unknownEnumValue,
-      markFilesAsGenerated: config.markFilesAsGenerated,
-      generateValidator: config.generateValidator,
-      includeIfNull: config.includeIfNull,
-      fallbackUnion: config.fallbackUnion,
-    ),
-  );
+  GeneratedFile fillDtoContent(UniversalDataClass dataClass) {
+    final fileName = _resolveDtoFileName(dataClass);
+    return GeneratedFile(
+      name: fileName,
+      content: _dtoFileContent(
+        dataClass,
+        jsonSerializer: config.jsonSerializer,
+        unknownEnumValue: config.unknownEnumValue,
+        markFilesAsGenerated: config.markFilesAsGenerated,
+        generateValidator: config.generateValidator,
+        includeIfNull: config.includeIfNull,
+        fallbackUnion: config.fallbackUnion,
+        importPathResolver: _importPathResolver(fileName),
+      ),
+    );
+  }
 
   String _dtoFileContent(
     UniversalDataClass dataClass, {
@@ -49,6 +58,7 @@ final class FillController {
     required bool generateValidator,
     required bool includeIfNull,
     String? fallbackUnion,
+    DartImportPathResolver? importPathResolver,
   }) {
     if (dataClass is UniversalEnumClass) {
       return dartEnumDtoTemplate(
@@ -59,7 +69,11 @@ final class FillController {
       );
     } else if (dataClass is UniversalComponentClass) {
       if (dataClass.typeDef) {
-        return dartTypeDefTemplate(dataClass, jsonSerializer: jsonSerializer);
+        return dartTypeDefTemplate(
+          dataClass,
+          jsonSerializer: jsonSerializer,
+          importPathResolver: importPathResolver,
+        );
       }
       return switch (jsonSerializer) {
         JsonSerializer.freezed => dartFreezedDtoTemplate(
@@ -67,37 +81,92 @@ final class FillController {
           generateValidator: generateValidator,
           includeIfNull: includeIfNull,
           fallbackUnion: fallbackUnion,
+          importPathResolver: importPathResolver,
         ),
         JsonSerializer.jsonSerializable => dartJsonSerializableDtoTemplate(
           dataClass,
           markFileAsGenerated: markFilesAsGenerated,
           includeIfNull: includeIfNull,
           fallbackUnion: fallbackUnion,
+          importPathResolver: importPathResolver,
         ),
         JsonSerializer.dartMappable => dartDartMappableDtoTemplate(
           dataClass,
           markFileAsGenerated: markFilesAsGenerated,
           fallbackUnion: fallbackUnion,
+          importPathResolver: importPathResolver,
         ),
       };
     }
     throw ArgumentError('Unknown type exception');
   }
 
-  String _resolveDtoFileBaseName(UniversalDataClass dataClass) {
-    return dataClass.name.toSnake;
+  String _resolveDtoFileName(UniversalDataClass dataClass) =>
+      '${_resolveDtoFolderName(dataClass)}/${dataClass.name.toSnake}.dart';
+
+  String _resolveDtoFolderName(UniversalDataClass dataClass) {
+    final outputLayout = config.outputLayout;
+    if (outputLayout == null) {
+      return 'models';
+    }
+
+    return switch (_classifyDataClass(dataClass)) {
+      'requests' => outputLayout.requests,
+      'responses' => outputLayout.responses,
+      'enums' => outputLayout.enums,
+      _ => outputLayout.models,
+    };
+  }
+
+  String _classifyDataClass(UniversalDataClass dataClass) {
+    final className = dataClass.name.toPascal;
+    final override = config.modelClassification.overrides[className];
+    if (override != null) {
+      return override;
+    }
+    if (dataClass is UniversalEnumClass) {
+      return 'enums';
+    }
+    if (_endsWithAny(className, config.modelClassification.requestSuffixes)) {
+      return 'requests';
+    }
+    if (_endsWithAny(className, config.modelClassification.responseSuffixes)) {
+      return 'responses';
+    }
+    return 'models';
+  }
+
+  bool _endsWithAny(String value, Iterable<String> suffixes) =>
+      suffixes.any(value.endsWith);
+
+  DartImportPathResolver _importPathResolver(String fromFileName) {
+    final dataClassFileNames = {
+      for (final dataClass in dataClasses)
+        dataClass.name.toPascal: _resolveDtoFileName(dataClass),
+    };
+
+    return (import) {
+      final targetFileName =
+          dataClassFileNames[import.toPascal] ??
+          'models/${import.toSnake}.dart';
+      return p.posix.relative(
+        targetFileName,
+        from: p.posix.dirname(fromFileName),
+      );
+    };
   }
 
   /// Return [GeneratedFile] generated from given [UniversalRestClient]
   GeneratedFile fillRestClientContent(UniversalRestClient restClient) {
     final postfix = config.clientPostfix ?? 'Client';
     final fileName = '${restClient.name}_$postfix'.toSnake;
-    final folderName = config.putClientsInFolder
-        ? 'clients'
-        : restClient.name.toSnake;
+    final folderName =
+        config.outputLayout?.clients ??
+        (config.putClientsInFolder ? 'clients' : restClient.name.toSnake);
+    final clientFileName = '$folderName/$fileName.dart';
 
     return GeneratedFile(
-      name: '$folderName/$fileName.dart',
+      name: clientFileName,
       content: dartRetrofitClientTemplate(
         restClient: restClient,
         name: restClient.name.toPascal + postfix.toPascal,
@@ -108,6 +177,7 @@ final class FillController {
         dioOptionsParameterByDefault: config.dioOptionsParameterByDefault,
         originalHttpResponse: config.originalHttpResponse,
         fileName: fileName,
+        importPathResolver: _importPathResolver(clientFileName),
       ),
     );
   }
@@ -132,6 +202,7 @@ final class FillController {
         putClientsInFolder: config.putClientsInFolder,
         markFileAsGenerated: config.markFilesAsGenerated,
         clientsNameMap: clientsNameMap,
+        clientFolderName: config.outputLayout?.clients,
       ),
     );
   }

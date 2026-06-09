@@ -99,6 +99,42 @@ void main() {
 
           expect(config.clientPostfix, equals('Service'));
         });
+
+        test('should parse output layout and model classification', () {
+          final yamlMap = YamlMap.wrap({
+            'schema_path': 'api/openapi.yaml',
+            'output_directory': 'lib/api',
+            'output_layout': {
+              'clients': 'rest_clients',
+              'models': 'entities',
+              'requests': 'inputs',
+              'responses': 'outputs',
+              'enums': 'options',
+            },
+            'model_classification': {
+              'request_suffixes': ['Input'],
+              'response_suffixes': ['Result'],
+              'overrides': {'SpecialModel': 'models', 'SpecialEnum': 'enums'},
+            },
+          });
+
+          final config = OpenApiConfig.fromYaml(yamlMap);
+
+          expect(config.outputLayout?.clients, equals('rest_clients'));
+          expect(config.outputLayout?.models, equals('entities'));
+          expect(config.outputLayout?.requests, equals('inputs'));
+          expect(config.outputLayout?.responses, equals('outputs'));
+          expect(config.outputLayout?.enums, equals('options'));
+          expect(config.modelClassification.requestSuffixes, equals(['Input']));
+          expect(
+            config.modelClassification.responseSuffixes,
+            equals(['Result']),
+          );
+          expect(
+            config.modelClassification.overrides,
+            equals({'SpecialModel': 'models', 'SpecialEnum': 'enums'}),
+          );
+        });
       });
 
       group('Root config inheritance', () {

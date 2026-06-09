@@ -10,6 +10,7 @@ String dartDartMappableDtoTemplate(
   UniversalComponentClass dataClass, {
   required bool markFileAsGenerated,
   String? fallbackUnion,
+  DartImportPathResolver? importPathResolver,
 }) {
   // Use fallback union only if explicitly provided
   // Auto-fallback is disabled to avoid breaking existing tests
@@ -28,6 +29,7 @@ String dartDartMappableDtoTemplate(
       dataClass,
       className,
       classNameSnake,
+      importPathResolver,
     );
   }
 
@@ -70,7 +72,10 @@ String dartDartMappableDtoTemplate(
 
   return '''
 ${dartImportDtoTemplate(JsonSerializer.dartMappable)}
-$dartCoreImports${dartImports(imports: _getAllImports(dataClass, isUnion: isUnion))}
+$dartCoreImports${dartImports(
+    imports: _getAllImports(dataClass, isUnion: isUnion),
+    importPathResolver: importPathResolver,
+  )}
 part '$classNameSnake.mapper.dart';
 
 ${descriptionComment(dataClass.description)}@MappableClass(${_getMappableClassAnnotation(dataClass, className, effectiveFallbackUnion)})
@@ -88,6 +93,7 @@ String _generateUndiscriminatedUnionTemplate(
   UniversalComponentClass dataClass,
   String className,
   String classNameSnake,
+  DartImportPathResolver? importPathResolver,
 ) {
   final variants = dataClass.undiscriminatedUnionVariants!;
 
@@ -104,7 +110,7 @@ String _generateUndiscriminatedUnionTemplate(
 
   return '''
 ${dartImportDtoTemplate(JsonSerializer.dartMappable)}
-${dartImports(imports: _getAllImports(dataClass, isUnion: true))}
+${dartImports(imports: _getAllImports(dataClass, isUnion: true), importPathResolver: importPathResolver)}
 part '$classNameSnake.mapper.dart';
 
 ${descriptionComment(dataClass.description)}class $className {

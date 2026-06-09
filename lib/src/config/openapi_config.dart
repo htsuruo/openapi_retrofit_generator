@@ -36,6 +36,8 @@ class OpenApiConfig {
     this.defaultClient = 'api',
     this.mergeOutputs = false,
     this.includeIfNull = false,
+    this.outputLayout,
+    this.modelClassification = const ModelClassification(),
   });
 
   /// Internal constructor of [OpenApiConfig]
@@ -66,6 +68,8 @@ class OpenApiConfig {
     required this.defaultClient,
     required this.mergeOutputs,
     required this.includeIfNull,
+    required this.outputLayout,
+    required this.modelClassification,
     this.fallbackUnion,
   });
 
@@ -226,6 +230,14 @@ class OpenApiConfig {
     final includeIfNull =
         yamlMap['include_if_null'] as bool? ?? rootConfig?.includeIfNull;
 
+    final outputLayout =
+        _parseOutputLayout(yamlMap['output_layout']) ??
+        rootConfig?.outputLayout;
+
+    final modelClassification =
+        _parseModelClassification(yamlMap['model_classification']) ??
+        rootConfig?.modelClassification;
+
     // Default config
     final dc = OpenApiConfig(name: name, outputDirectory: outputDirectory);
 
@@ -259,7 +271,110 @@ class OpenApiConfig {
       includeTags: includedTags ?? dc.includeTags,
       defaultClient: defaultClient ?? dc.defaultClient,
       includeIfNull: includeIfNull ?? dc.includeIfNull,
+      outputLayout: outputLayout ?? dc.outputLayout,
+      modelClassification: modelClassification ?? dc.modelClassification,
     );
+  }
+
+  static OutputLayout? _parseOutputLayout(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is! YamlMap) {
+      throw const ConfigException(
+        "Config parameter 'output_layout' must be a map.",
+      );
+    }
+
+    String folder(String key, String defaultValue) {
+      final rawValue = value[key];
+      if (rawValue == null) {
+        return defaultValue;
+      }
+      if (rawValue is! String || rawValue.trim().isEmpty) {
+        throw ConfigException(
+          "Config parameter 'output_layout.$key' must be a non-empty String.",
+        );
+      }
+      return rawValue.trim();
+    }
+
+    return OutputLayout(
+      clients: folder('clients', 'clients'),
+      models: folder('models', 'models'),
+      requests: folder('requests', 'requests'),
+      responses: folder('responses', 'responses'),
+      enums: folder('enums', 'enums'),
+    );
+  }
+
+  static ModelClassification? _parseModelClassification(Object? value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is! YamlMap) {
+      throw const ConfigException(
+        "Config parameter 'model_classification' must be a map.",
+      );
+    }
+
+    return ModelClassification(
+      requestSuffixes:
+          _parseStringList(
+            value['request_suffixes'],
+            'model_classification.request_suffixes',
+          ) ??
+          const ModelClassification().requestSuffixes,
+      responseSuffixes:
+          _parseStringList(
+            value['response_suffixes'],
+            'model_classification.response_suffixes',
+          ) ??
+          const ModelClassification().responseSuffixes,
+      overrides: _parseClassificationOverrides(value['overrides']),
+    );
+  }
+
+  static List<String>? _parseStringList(Object? value, String configPath) {
+    if (value == null) {
+      return null;
+    }
+    if (value is! YamlList) {
+      throw ConfigException("Config parameter '$configPath' must be a list.");
+    }
+    return [
+      for (final item in value)
+        if (item is String && item.trim().isNotEmpty)
+          item.trim()
+        else
+          throw ConfigException(
+            "Config parameter '$configPath' values must be non-empty String.",
+          ),
+    ];
+  }
+
+  static Map<String, String> _parseClassificationOverrides(Object? value) {
+    if (value == null) {
+      return const <String, String>{};
+    }
+    if (value is! YamlMap) {
+      throw const ConfigException(
+        "Config parameter 'model_classification.overrides' must be a map.",
+      );
+    }
+    const allowedValues = {'models', 'requests', 'responses', 'enums'};
+    final overrides = <String, String>{};
+    for (final entry in value.entries) {
+      if (entry.key is! String ||
+          entry.value is! String ||
+          !allowedValues.contains(entry.value)) {
+        throw const ConfigException(
+          "Config parameter 'model_classification.overrides' values must be one of models, requests, responses, or enums.",
+        );
+      }
+      overrides[(entry.key as String).trim()] = entry.value as String;
+    }
+    return overrides;
   }
 
   /// Creates a [OpenApiConfig] from [YamlMap] with CLI [argResults] overrides.
@@ -575,6 +690,15 @@ class OpenApiConfig {
   /// Default: false
   final bool includeIfNull;
 
+  /// Optional generated output layout.
+  ///
+  /// When omitted, the historical layout is preserved:
+  /// clients follow [putClientsInFolder] and data classes go under `models/`.
+  final OutputLayout? outputLayout;
+
+  /// Name-based data-class classification rules used with [outputLayout].
+  final ModelClassification modelClassification;
+
   /// Convert [OpenApiConfig] to [GeneratorConfig]
   GeneratorConfig toGeneratorConfig() {
     return GeneratorConfig(
@@ -596,6 +720,8 @@ class OpenApiConfig {
       fallbackUnion: fallbackUnion,
       mergeOutputs: mergeOutputs,
       includeIfNull: includeIfNull,
+      outputLayout: outputLayout,
+      modelClassification: modelClassification,
     );
   }
 

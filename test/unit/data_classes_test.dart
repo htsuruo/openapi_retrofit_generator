@@ -142,6 +142,52 @@ abstract class ClassName with _$ClassName {
 ''';
       expect(filledContent.content, expectedContents);
     });
+
+    test('uses output layout folders for data classes and imports', () async {
+      final statusEnum = UniversalEnumClass(
+        name: 'Status',
+        type: 'string',
+        items: {const UniversalEnumItem(name: 'active', jsonKey: 'active')},
+      );
+      const user = UniversalComponentClass(
+        name: 'User',
+        imports: {'Status'},
+        parameters: {},
+      );
+      const createUserRequest = UniversalComponentClass(
+        name: 'CreateUserRequest',
+        imports: {'User', 'Status'},
+        parameters: {},
+      );
+      const userResponse = UniversalComponentClass(
+        name: 'UserResponse',
+        imports: {'User'},
+        parameters: {},
+      );
+      final dataClasses = [statusEnum, user, createUserRequest, userResponse];
+      final fillController = FillController(
+        config: const GeneratorConfig(
+          name: '',
+          outputDirectory: '.',
+          outputLayout: OutputLayout(),
+        ),
+        dataClasses: dataClasses,
+      );
+
+      final enumFile = fillController.fillDtoContent(statusEnum);
+      final modelFile = fillController.fillDtoContent(user);
+      final requestFile = fillController.fillDtoContent(createUserRequest);
+      final responseFile = fillController.fillDtoContent(userResponse);
+
+      expect(enumFile.name, equals('enums/status.dart'));
+      expect(modelFile.name, equals('models/user.dart'));
+      expect(requestFile.name, equals('requests/create_user_request.dart'));
+      expect(responseFile.name, equals('responses/user_response.dart'));
+      expect(modelFile.content, contains("import '../enums/status.dart';"));
+      expect(requestFile.content, contains("import '../models/user.dart';"));
+      expect(requestFile.content, contains("import '../enums/status.dart';"));
+      expect(responseFile.content, contains("import '../models/user.dart';"));
+    });
   });
 
   group('Parameters', () {

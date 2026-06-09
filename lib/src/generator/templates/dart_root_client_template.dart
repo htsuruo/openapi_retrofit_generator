@@ -11,6 +11,7 @@ String dartRootClientTemplate({
   required bool putClientsInFolder,
   required bool markFileAsGenerated,
   Map<String, String>? clientsNameMap,
+  String? clientFolderName,
 }) {
   if (clientsNames.isEmpty) {
     return '';
@@ -34,7 +35,7 @@ String dartRootClientTemplate({
 
   return '''
 import 'package:dio/dio.dart' hide Headers;
-${_clientsImport(clientsNames, postfix, putClientsInFolder: putClientsInFolder, clientsNameMap: clientsNameMap)}
+${_clientsImport(clientsNames, postfix, putClientsInFolder: putClientsInFolder, clientsNameMap: clientsNameMap, clientFolderName: clientFolderName)}
 ${descriptionComment(comment)}class $className {
   $className(
     Dio dio, {
@@ -59,11 +60,12 @@ String _clientsImport(
   String postfix, {
   required bool putClientsInFolder,
   Map<String, String>? clientsNameMap,
+  String? clientFolderName,
 }) {
   return '\n${imports.map((import) {
     final snakeName = clientsNameMap?[import] ?? import.toSnake;
-    return "import '${putClientsInFolder ? 'clients' : snakeName}/"
-        "${snakeName}_${postfix.toSnake}.dart';";
+    final folderName = clientFolderName ?? (putClientsInFolder ? 'clients' : snakeName);
+    return "import '$folderName/${snakeName}_${postfix.toSnake}.dart';";
   }).join('\n')}\n';
 }
 

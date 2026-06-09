@@ -49,7 +49,11 @@ class Generator {
   /// Generates content of files based on OpenApi definition file
   /// and return list of [GeneratedFile]
   List<GeneratedFile> generateContent() {
-    final fillController = FillController(config: config, info: info);
+    final fillController = FillController(
+      config: config,
+      info: info,
+      dataClasses: dataClasses,
+    );
 
     final dataClassesFiles = dataClasses
         .map(fillController.fillDtoContent)

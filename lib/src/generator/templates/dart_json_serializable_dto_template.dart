@@ -10,6 +10,7 @@ String dartJsonSerializableDtoTemplate(
   required bool markFileAsGenerated,
   required bool includeIfNull,
   String? fallbackUnion,
+  DartImportPathResolver? importPathResolver,
 }) {
   final originalClassName = dataClass.name.toPascal;
 
@@ -27,6 +28,7 @@ String dartJsonSerializableDtoTemplate(
       className,
       includeIfNull,
       fallbackUnion,
+      importPathResolver,
     );
   }
 
@@ -43,7 +45,7 @@ String dartJsonSerializableDtoTemplate(
 
   return '''
 import 'package:json_annotation/json_annotation.dart';
-$dartCoreImports${dartImports(imports: _filterUnionImportsForNonUnion(dataClass))}
+$dartCoreImports${dartImports(imports: _filterUnionImportsForNonUnion(dataClass), importPathResolver: importPathResolver)}
 part '$classNameSnake.g.dart';
 
 ${descriptionComment(dataClass.description)}@JsonSerializable()
@@ -63,6 +65,7 @@ String _generateUnionTemplate(
 
   bool includeIfNull,
   String? fallbackUnion,
+  DartImportPathResolver? importPathResolver,
 ) {
   // Check if this is a discriminated union
   if (dataClass.discriminator != null) {
@@ -71,6 +74,7 @@ String _generateUnionTemplate(
       className,
       includeIfNull,
       fallbackUnion,
+      importPathResolver,
     );
   }
 
@@ -81,11 +85,12 @@ String _generateUnionTemplate(
       className,
       includeIfNull,
       fallbackUnion,
+      importPathResolver,
     );
   }
 
   // Fallback to simple map wrapper for unknown union types
-  return _generateSimpleMapWrapper(dataClass, className);
+  return _generateSimpleMapWrapper(dataClass, className, importPathResolver);
 }
 
 String _generateDiscriminatedUnionTemplate(
@@ -94,6 +99,7 @@ String _generateDiscriminatedUnionTemplate(
 
   bool includeIfNull,
   String? fallbackUnion,
+  DartImportPathResolver? importPathResolver,
 ) {
   final discriminator = dataClass.discriminator!;
 
@@ -137,7 +143,7 @@ sealed class $className {
 
   return '''
 import 'package:json_annotation/json_annotation.dart';
-${dartImports(imports: allImports)}
+${dartImports(imports: allImports, importPathResolver: importPathResolver)}
 
 part '${className.toSnake}.g.dart';
 
@@ -154,6 +160,7 @@ String _generateUndiscriminatedUnionTemplate(
   String className,
   bool includeIfNull, [
   String? fallbackUnion,
+  DartImportPathResolver? importPathResolver,
 ]) {
   final variants = dataClass.undiscriminatedUnionVariants!;
 
@@ -201,7 +208,7 @@ $conversionMethods
 
   return '''
 import 'package:json_annotation/json_annotation.dart';
-${dartImports(imports: allImports)}
+${dartImports(imports: allImports, importPathResolver: importPathResolver)}
 
 part '${className.toSnake}.g.dart';
 
@@ -214,6 +221,7 @@ $wrappers
 String _generateSimpleMapWrapper(
   UniversalComponentClass dataClass,
   String className,
+  DartImportPathResolver? importPathResolver,
 ) {
   // Generate list of possible variants for documentation
   final variants = <String>[];
@@ -238,7 +246,7 @@ String _generateSimpleMapWrapper(
 
   return '''
 import 'package:json_annotation/json_annotation.dart';
-${dartImports(imports: _filterUnionImports(dataClass))}
+${dartImports(imports: _filterUnionImports(dataClass), importPathResolver: importPathResolver)}
 part '${className.toSnake}.g.dart';
 
 ${descriptionComment(dataClass.description)}@JsonSerializable()

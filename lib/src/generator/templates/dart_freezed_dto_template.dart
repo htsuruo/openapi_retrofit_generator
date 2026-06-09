@@ -10,6 +10,7 @@ String dartFreezedDtoTemplate(
   required bool includeIfNull,
   bool generateValidator = false,
   String? fallbackUnion,
+  DartImportPathResolver? importPathResolver,
 }) {
   final className = dataClass.name.toPascal;
   final discriminator = dataClass.discriminator;
@@ -37,7 +38,7 @@ String dartFreezedDtoTemplate(
 
     return '''
 import 'package:json_annotation/json_annotation.dart';
-$dartCoreImports${dartImports(imports: _filterUnionImportsForFreezed(dataClass))}
+$dartCoreImports${dartImports(imports: _filterUnionImportsForFreezed(dataClass), importPathResolver: importPathResolver)}
 part '${dataClass.name.toSnake}.g.dart';
 
 ${descriptionComment(dataClass.description)}class $className {
@@ -49,7 +50,7 @@ $variantClasses$base64ConverterClass''';
   // For discriminated unions and regular classes, use Freezed
   return '''
 import 'package:freezed_annotation/freezed_annotation.dart';
-$dartCoreImports${dartImports(imports: _filterUnionImportsForFreezed(dataClass))}
+$dartCoreImports${dartImports(imports: _filterUnionImportsForFreezed(dataClass), importPathResolver: importPathResolver)}
 part '${dataClass.name.toSnake}.freezed.dart';
 part '${dataClass.name.toSnake}.g.dart';
 

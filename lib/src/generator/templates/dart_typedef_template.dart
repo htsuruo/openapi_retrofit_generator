@@ -9,6 +9,7 @@ import 'package:openapi_retrofit_generator/src/utils/type_utils.dart';
 String dartTypeDefTemplate(
   UniversalComponentClass dataClass, {
   JsonSerializer? jsonSerializer,
+  DartImportPathResolver? importPathResolver,
 }) {
   final className = dataClass.name.toPascal;
   final type = dataClass.parameters.firstOrNull;
@@ -17,14 +18,17 @@ String dartTypeDefTemplate(
     return '';
   }
 
-  final importFileName = _getImportFileName(import, jsonSerializer);
+  final importPath = import == null
+      ? ''
+      : importPathResolver?.call(import) ??
+            '${_getImportFileName(import)}.dart';
 
-  return '${import != null ? "import '$importFileName.dart';\nexport '$importFileName.dart';\n\n" : ''}'
+  return '${import != null ? "import '$importPath';\nexport '$importPath';\n\n" : ''}'
       '${descriptionComment(dataClass.description)}'
       'typedef $className = ${_renameTypeForSerializer(type.toSuitableType(), jsonSerializer)};\n';
 }
 
-String _getImportFileName(String? import, JsonSerializer? jsonSerializer) {
+String _getImportFileName(String? import) {
   if (import == null) return '';
   return import.toSnake;
 }

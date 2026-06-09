@@ -1,5 +1,53 @@
 import 'package:openapi_retrofit_generator/src/generator/model/json_serializer.dart';
 
+/// Generated output layout for REST clients and data classes.
+class OutputLayout {
+  /// Creates an [OutputLayout].
+  const OutputLayout({
+    this.clients = 'clients',
+    this.models = 'models',
+    this.requests = 'requests',
+    this.responses = 'responses',
+    this.enums = 'enums',
+  });
+
+  /// Folder for generated REST clients.
+  final String clients;
+
+  /// Folder for regular component models.
+  final String models;
+
+  /// Folder for request DTOs.
+  final String requests;
+
+  /// Folder for response DTOs.
+  final String responses;
+
+  /// Folder for enum DTOs.
+  final String enums;
+}
+
+/// Name-based classification rules for generated data classes.
+class ModelClassification {
+  /// Creates a [ModelClassification].
+  const ModelClassification({
+    this.requestSuffixes = const ['Input', 'Request', 'Payload'],
+    this.responseSuffixes = const ['Response', 'Page'],
+    this.overrides = const <String, String>{},
+  });
+
+  /// Suffixes treated as request DTOs.
+  final List<String> requestSuffixes;
+
+  /// Suffixes treated as response DTOs.
+  final List<String> responseSuffixes;
+
+  /// Exact class-name overrides.
+  ///
+  /// Values must be one of `models`, `requests`, `responses`, or `enums`.
+  final Map<String, String> overrides;
+}
+
 /// The configuration that the Generator uses
 class GeneratorConfig {
   /// Creates a  [GeneratorConfig].
@@ -22,6 +70,8 @@ class GeneratorConfig {
     this.fallbackUnion,
     this.mergeOutputs = false,
     this.includeIfNull = false,
+    this.outputLayout,
+    this.modelClassification = const ModelClassification(),
   });
 
   /// API identifier used for naming folders and export files.
@@ -187,4 +237,12 @@ class GeneratorConfig {
   ///
   /// Default: false
   final bool includeIfNull;
+
+  /// Optional generated output layout.
+  ///
+  /// When null, the historical layout is preserved.
+  final OutputLayout? outputLayout;
+
+  /// Name-based classification rules used when [outputLayout] is set.
+  final ModelClassification modelClassification;
 }
